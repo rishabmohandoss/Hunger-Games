@@ -371,6 +371,35 @@ io.on("connection", (socket) => {
     checkAllOrdered(room);
   });
 
+  // ── UPDATE PARAMS (host only, lobby or results phase) ───
+  socket.on("update_params", ({ roomCode, distribution, params }) => {
+    const room = rooms[roomCode];
+    if (!room) return socket.emit("error", { message: "Room not found." });
+    if (room.hostId !== socket.id) return socket.emit("error", { message: "Only the host can change parameters." });
+    if (!["lobby", "results"].includes(room.status)) return socket.emit("error", { message: "Can only edit params in lobby or between rounds." });
+
+    if (distribution && ["uniform", "normal", "random"].includes(distribution)) {
+      room.distribution = distribution;
+    }
+    if (params) {
+      room.params = {
+        price:           Number(params.price)           || room.params.price,
+        cost:            Number(params.cost)            || room.params.cost,
+        opportunityCost: Number(params.opportunityCost) >= 0 ? Number(params.opportunityCost) : room.params.opportunityCost,
+        demandMin:       Number(params.demandMin)       >= 0 ? Number(params.demandMin)       : room.params.demandMin,
+        demandMax:       Number(params.demandMax)       || room.params.demandMax,
+        demandStd:       Number(params.demandStd)       || room.params.demandStd,
+      };
+    }
+
+    io.to(roomCode).emit("params_updated", {
+      distribution: room.distribution,
+      params:       room.params,
+    });
+    socket.emit("params_saved", { distribution: room.distribution, params: room.params });
+    console.log(`[Room ${roomCode}] Params updated by host`);
+  });
+
   // ── NEXT ROUND (host only) ───────────────────────────────
   socket.on("next_round", ({ roomCode }) => {
     const room = rooms[roomCode];
