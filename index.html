@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Newsvendor · Market</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+/* ── RESET & BASE ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #070a0f;
+  --bg2:      #0d1117;
+  --bg3:      #111820;
+  --border:   #1e2d3d;
+  --accent:   #00e5ff;
+  --green:    #39ff8f;
+  --red:      #ff4566;
+  --gold:     #ffd166;
+  --muted:    #4a6070;
+  --text:     #ccd6e0;
+  --text2:    #7a9bb0;
+  --mono:     'Space Mono', monospace;
+  --sans:     'Syne', sans-serif;
+  --radius:   6px;
+  --glow:     0 0 20px rgba(0,229,255,.18);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINE OVERLAY ─────────────────────────── */
+body::after {
+  content: '';
+  pointer-events: none;
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,.04) 3px, rgba(0,0,0,.04) 4px
+  );
+  z-index: 9999;
+}
+
+/* ── LAYOUT ───────────────────────────────────── */
+#app {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+/* ── HEADER ───────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 0 36px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.logo-mark {
+  width: 44px; height: 44px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: .5px;
+  box-shadow: var(--glow);
+  flex-shrink: 0;
+}
+.header-text h1 {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+.header-text span {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.header-badge {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 4px 12px;
+  opacity: .7;
+  letter-spacing: 1px;
+}
+
+/* ── SCREEN MANAGEMENT ────────────────────────── */
+.screen { display: none; animation: fadeIn .3s ease; }
+.screen.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── CARD ─────────────────────────────────────── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+/* ── FORM ELEMENTS ────────────────────────────── */
+.field { margin-bottom: 18px; }
+.field label {
+  display: block;
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--muted);
+  margin-bottom: 7px;
+  letter-spacing: 1px;
+}
+.field input, .field select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 11px 14px;
+  font-family: var(--mono);
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  appearance: none;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,229,255,.08);
+}
+.field input::placeholder { color: var(--muted); }
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── BUTTONS ──────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--mono);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s, box-shadow .2s;
+  text-transform: uppercase;
+}
+.btn:hover  { opacity: .85; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 28px rgba(0,229,255,.25);
+  width: 100%;
+  margin-top: 8px;
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  width: 100%;
+  margin-top: 8px;
+}
+.btn-green {
+  background: var(--green);
+  color: #000;
+  box-shadow: 0 0 28px rgba(57,255,143,.2);
+  font-size: 1.1rem;
+  padding: 16px 32px;
+  width: 100%;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  font-size: .75rem;
+  padding: 8px 16px;
+}
+
+/* ── TABS ─────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.tab {
+  padding: 10px 20px;
+  font-family: var(--mono);
+  font-size: .78rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── LOBBY SCREEN ─────────────────────────────── */
+.room-code-display {
+  text-align: center;
+  padding: 32px 16px;
+}
+.room-code-display .label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.room-code-display .code {
+  font-family: var(--mono);
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 12px;
+  text-shadow: var(--glow);
+}
+
+.player-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.player-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: .85rem;
+  transition: border-color .3s;
+}
+.player-item.host-player { border-color: rgba(0,229,255,.3); }
+.player-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  flex-shrink: 0;
+}
+.player-dot.offline { background: var(--muted); box-shadow: none; }
+.player-badge {
+  margin-left: auto;
+  font-size: .65rem;
+  letter-spacing: 1px;
+  color: var(--accent);
+  opacity: .7;
+}
+
+/* ── GAME HUD ─────────────────────────────────── */
+.hud {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.hud-stat {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.hud-stat .stat-label {
+  font-family: var(--mono);
+  font-size: .65rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.hud-stat .stat-value {
+  font-family: var(--mono);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+}
+.hud-stat.accent .stat-value { color: var(--accent); }
+.hud-stat.green  .stat-value { color: var(--green); }
+.hud-stat.gold   .stat-value { color: var(--gold); }
+
+/* ── TIMER ────────────────────────────────────── */
+.timer-ring {
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  margin: 20px auto;
+  position: relative;
+  width: 140px; height: 140px;
+}
+.timer-ring svg {
+  position: absolute; inset: 0;
+  transform: rotate(-90deg);
+}
+.timer-ring circle {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .9s linear, stroke .5s;
+}
+.timer-bg { stroke: var(--border); }
+.timer-fg { stroke: var(--accent); stroke-dasharray: 408; stroke-dashoffset: 0; }
+.timer-fg.urgent { stroke: var(--red); }
+.timer-count {
+  font-family: var(--mono);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+}
+.timer-label {
+  font-family: var(--mono);
+  font-size: .65rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── ORDER INPUT AREA ─────────────────────────── */
+.order-area {
+  text-align: center;
+  padding: 24px;
+}
+.order-area .instruction {
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--muted);
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+}
+.qty-control {
+  display: flex; align-items: center; justify-content: center; gap: 0;
+  margin-bottom: 20px;
+}
+.qty-btn {
+  width: 48px; height: 56px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.qty-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.qty-btn:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+.qty-btn:hover { background: var(--border); color: var(--accent); }
+.qty-input {
+  width: 120px; height: 56px;
+  background: var(--bg2);
+  border: 1px solid var(--accent);
+  border-left: none; border-right: none;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+/* Hide number input arrows */
+.qty-input::-webkit-inner-spin-button,
+.qty-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.qty-input[type=number] { -moz-appearance: textfield; }
+
+.order-submitted-msg {
+  display: none;
+  text-align: center;
+  padding: 32px;
+  font-family: var(--mono);
+  color: var(--green);
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+}
+.order-submitted-msg .submitted-qty {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* ── PARAMS PANEL ─────────────────────────────── */
+.params-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.param-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.param-item .p-label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.param-item .p-val {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ── WAITING INDICATOR ────────────────────────── */
+.waiting-dots span {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin: 0 3px;
+  animation: blink 1.2s infinite;
+}
+.waiting-dots span:nth-child(2) { animation-delay: .2s; }
+.waiting-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink {
+  0%,80%,100% { opacity: .15; }
+  40%          { opacity: 1; }
+}
+
+/* ── RESULTS TABLE ────────────────────────────── */
+.results-table { width: 100%; border-collapse: collapse; }
+.results-table th {
+  font-family: var(--mono);
+  font-size: .65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.results-table th:first-child { text-align: left; }
+.results-table td {
+  font-family: var(--mono);
+  font-size: .85rem;
+  text-align: right;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(30,45,61,.5);
+}
+.results-table td:first-child { text-align: left; }
+.results-table tr:last-child td { border-bottom: none; }
+.results-table .profit-pos { color: var(--green); font-weight: 700; }
+.results-table .profit-neg { color: var(--red); font-weight: 700; }
+.results-table .highlight { background: rgba(0,229,255,.04); }
+
+/* ── LEADERBOARD ──────────────────────────────── */
+.leaderboard { display: flex; flex-direction: column; gap: 8px; }
+.lb-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  transition: border-color .3s;
+}
+.lb-row.lb-first { border-color: rgba(255,209,102,.4); }
+.lb-rank {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--muted);
+  min-width: 28px;
+}
+.lb-row.lb-first .lb-rank { color: var(--gold); }
+.lb-name { font-family: var(--sans); font-weight: 600; font-size: .9rem; flex: 1; }
+.lb-profit {
+  font-family: var(--mono);
+  font-size: .9rem;
+  font-weight: 700;
+}
+.lb-profit.pos { color: var(--green); }
+.lb-profit.neg { color: var(--red); }
+
+/* ── DEMAND REVEAL ────────────────────────────── */
+.demand-reveal {
+  text-align: center;
+  padding: 28px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.demand-reveal .d-label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.demand-reveal .d-value {
+  font-family: var(--mono);
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  animation: popIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes popIn {
+  from { transform: scale(.6); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+.demand-reveal .d-dist {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── LOG STREAM ───────────────────────────────── */
+.log-stream {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: .75rem;
+  max-height: 120px;
+  overflow-y: auto;
+  color: var(--muted);
+}
+.log-stream .log-line { margin-bottom: 3px; }
+.log-stream .log-line span { color: var(--accent); margin-right: 8px; }
+
+/* ── TOAST ────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .3s, transform .3s;
+  z-index: 10000;
+  max-width: 320px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.toast-err { border-color: var(--red); color: var(--red); }
+
+/* ── DIVIDER ──────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 24px 0;
+}
+
+/* ── MISC UTILS ───────────────────────────────── */
+.text-center { text-align: center; }
+.text-muted { color: var(--muted); font-family: var(--mono); font-size: .8rem; }
+.mt8  { margin-top: 8px; }
+.mt16 { margin-top: 16px; }
+.mt24 { margin-top: 24px; }
+.flex-center { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.order-count-bar {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  height: 6px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.order-count-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 99px;
+  transition: width .4s ease;
+  box-shadow: 0 0 8px var(--green);
+}
+.game-over-banner {
+  text-align: center;
+  padding: 24px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: rgba(255,209,102,.04);
+  margin-bottom: 20px;
+}
+.game-over-banner h2 {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 2rem;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+.game-over-banner p {
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+/* ── RESPONSIVE ───────────────────────────────── */
+@media (max-width: 560px) {
+  .hud { grid-template-columns: 1fr 1fr; }
+  .params-grid { grid-template-columns: 1fr 1fr; }
+  .field-row { grid-template-columns: 1fr; }
+  .room-code-display .code { font-size: 2.2rem; letter-spacing: 8px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-mark">NV</div>
+    <div class="header-text">
+      <h1>Newsvendor</h1>
+      <span>Real-Time Market Game</span>
+    </div>
+    <div class="header-badge">LIVE</div>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       SCREEN: HOME
+  ══════════════════════════════════════ -->
+  <div id="screen-home" class="screen active">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('create')">Create Room</button>
+      <button class="tab" onclick="switchTab('join')">Join Room</button>
+    </div>
+
+    <!-- CREATE TAB -->
+    <div id="tab-create">
+      <div class="card">
+        <div class="card-title">// Host Settings</div>
+        <div class="field">
+          <label>Your Name</label>
+          <input id="create-name" type="text" maxlength="24" placeholder="Enter your name" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Rounds</label>
+            <input id="rounds" type="number" value="5" min="1" max="20" />
+          </div>
+          <div class="field">
+            <label>Demand Distribution</label>
+            <select id="distribution">
+              <option value="uniform">Uniform</option>
+              <option value="normal">Normal</option>
+              <option value="random">Random (Wild)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">// Market Parameters</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Selling Price / unit</label>
+            <input id="p-price" type="number" value="10" min="1" />
+          </div>
+          <div class="field">
+            <label>Purchase Cost / unit</label>
+            <input id="p-cost" type="number" value="4" min="0" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Opportunity Cost / unit</label>
+            <input id="p-opp" type="number" value="2" min="0" />
+          </div>
+          <div class="field" id="field-min">
+            <label id="demand-label-min">Demand Min</label>
+            <input id="p-min" type="number" value="20" min="0" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label id="demand-label-max">Demand Max</label>
+            <input id="p-max" type="number" value="80" min="1" />
+          </div>
+          <div class="field" id="field-std">
+            <label>Demand Std Dev</label>
+            <input id="p-std" type="number" value="15" min="1" style="display:none" />
+            <input id="p-std-placeholder" type="number" value="15" min="1" style="opacity:.3" disabled />
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="createRoom()">⊕ Create Room</button>
+    </div>
+
+    <!-- JOIN TAB -->
+    <div id="tab-join" style="display:none">
+      <div class="card">
+        <div class="card-title">// Join a Game</div>
+        <div class="field">
+          <label>Your Name</label>
+          <input id="join-name" type="text" maxlength="24" placeholder="Enter your name" />
+        </div>
+        <div class="field">
+          <label>Room Code</label>
+          <input id="join-code" type="text" maxlength="5" placeholder="XXXXX"
+                 style="text-transform:uppercase;letter-spacing:6px;font-size:1.2rem"
+                 oninput="this.value=this.value.toUpperCase()" />
+        </div>
+        <button class="btn btn-primary" onclick="joinRoom()">→ Join Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SCREEN: LOBBY
+  ══════════════════════════════════════ -->
+  <div id="screen-lobby" class="screen">
+    <div class="card">
+      <div class="card-title">// Room Code</div>
+      <div class="room-code-display">
+        <div class="label">Share this with players</div>
+        <div class="code" id="lobby-code">-----</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Players <span id="player-count" style="color:var(--accent)">0</span></div>
+      <div class="player-list" id="lobby-players"></div>
+      <div id="lobby-waiting" class="text-center text-muted mt8">
+        <span class="waiting-dots"><span></span><span></span><span></span></span>
+        &nbsp;Waiting for players…
+      </div>
+    </div>
+
+    <div id="host-controls" style="display:none">
+      <button class="btn btn-primary" id="start-btn" onclick="startGame()">▶ Start Game</button>
+      <p class="text-muted text-center mt8">You are the host. Start when ready.</p>
+    </div>
+    <div id="guest-waiting" class="card text-center" style="display:none">
+      <div class="text-muted">Waiting for host to start the game…</div>
+    </div>
+
+    <div class="log-stream mt16" id="lobby-log"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SCREEN: ORDERING
+  ══════════════════════════════════════ -->
+  <div id="screen-ordering" class="screen">
+    <div class="hud">
+      <div class="hud-stat accent">
+        <div class="stat-label">Round</div>
+        <div class="stat-value" id="hud-round">—</div>
+      </div>
+      <div class="hud-stat gold">
+        <div class="stat-label">My Profit</div>
+        <div class="stat-value" id="hud-profit">$0</div>
+      </div>
+      <div class="hud-stat">
+        <div class="stat-label">Price</div>
+        <div class="stat-value" id="hud-price">—</div>
+      </div>
+      <div class="hud-stat">
+        <div class="stat-label">Cost</div>
+        <div class="stat-value" id="hud-cost">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Market Parameters</div>
+      <div class="params-grid" id="params-display"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Place Your Order</div>
+      <div class="timer-ring">
+        <svg viewBox="0 0 140 140" width="140" height="140">
+          <circle class="timer-bg" cx="70" cy="70" r="65"/>
+          <circle class="timer-fg" id="timer-ring" cx="70" cy="70" r="65"/>
+        </svg>
+        <div class="timer-count" id="timer-count">30</div>
+        <div class="timer-label">seconds</div>
+      </div>
+
+      <div class="order-area" id="order-input-area">
+        <div class="instruction">How many units do you order?</div>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="adjustQty(-10)">−−</button>
+          <button class="qty-btn" onclick="adjustQty(-1)">−</button>
+          <input class="qty-input" id="qty-input" type="number" value="50" min="0" max="9999"/>
+          <button class="qty-btn" onclick="adjustQty(1)">+</button>
+          <button class="qty-btn" onclick="adjustQty(10)">++</button>
+        </div>
+        <button class="btn btn-green" onclick="submitOrder()">✓ Submit Order</button>
+      </div>
+
+      <div class="order-submitted-msg" id="order-submitted-msg">
+        <span class="submitted-qty" id="submitted-qty-val">—</span>
+        ORDER LOCKED IN
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Orders Received</div>
+      <div class="text-muted" id="order-status-text">0 / 0 submitted</div>
+      <div class="order-count-bar mt8">
+        <div class="order-count-fill" id="order-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SCREEN: RESULTS
+  ══════════════════════════════════════ -->
+  <div id="screen-results" class="screen">
+    <div id="game-over-banner" style="display:none" class="game-over-banner">
+      <h2>🏁 Game Over</h2>
+      <p>FINAL STANDINGS</p>
+    </div>
+
+    <div class="card">
+      <div class="demand-reveal">
+        <div class="d-label">Market Demand</div>
+        <div class="d-value" id="result-demand">—</div>
+        <div class="d-dist" id="result-dist">—</div>
+      </div>
+      <div class="card-title">// Round Results</div>
+      <div style="overflow-x:auto">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Ordered</th>
+              <th>Sold</th>
+              <th>Unmet</th>
+              <th>Revenue</th>
+              <th>Cost</th>
+              <th>Profit</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">// Leaderboard</div>
+      <div class="leaderboard" id="leaderboard"></div>
+    </div>
+
+    <div id="next-round-controls" style="display:none">
+      <button class="btn btn-primary" id="next-round-btn" onclick="requestNextRound()">→ Next Round</button>
+    </div>
+    <div id="waiting-next" class="text-center text-muted mt16" style="display:none">
+      Waiting for host to start next round…
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+let socket;
+let state = {
+  roomCode:    null,
+  isHost:      false,
+  myId:        null,
+  myProfit:    0,
+  round:       0,
+  maxRounds:   0,
+  params:      {},
+  timerInterval: null,
+  timerEnd:    null,
+};
+
+// ============================================================
+//  SOCKET INIT
+// ============================================================
+function initSocket() {
+  if (socket) return;
+  // Automatically connects to whatever server served this page.
+  // If running locally, change to: io('http://localhost:3000')
+  socket = io();
+
+  socket.on('connect', () => {
+    state.myId = socket.id;
+    log(`Connected — ID: ${socket.id.slice(0,8)}…`);
+  });
+
+  socket.on('disconnect', () => toast('Disconnected from server.', true));
+  socket.on('error', (d) => toast(d.message, true));
+
+  socket.on('room_created', ({ code, roomSummary }) => {
+    state.roomCode = code;
+    state.isHost   = true;
+    showLobby(roomSummary);
+  });
+
+  socket.on('room_joined', ({ code, roomSummary }) => {
+    state.roomCode = code;
+    state.isHost   = false;
+    showLobby(roomSummary);
+  });
+
+  socket.on('player_joined', ({ roomSummary }) => {
+    updateLobbyPlayers(roomSummary.players);
+    const last = roomSummary.players[roomSummary.players.length - 1];
+    log(`${last.name} joined the room`);
+  });
+
+  socket.on('player_disconnected', ({ playerName, roomSummary }) => {
+    toast(`${playerName} disconnected`);
+    if (roomSummary) updateLobbyPlayers(roomSummary.players);
+  });
+
+  socket.on('game_starting', ({ roomSummary }) => {
+    state.maxRounds = roomSummary.maxRounds;
+    state.params    = roomSummary.params;
+  });
+
+  socket.on('round_start', (data) => {
+    state.round  = data.round;
+    state.params = data.params;
+    showOrderingScreen(data);
+  });
+
+  socket.on('order_confirmed', ({ quantity }) => {
+    showOrderSubmitted(quantity);
+  });
+
+  socket.on('order_update', ({ orderedCount, totalPlayers }) => {
+    updateOrderCount(orderedCount, totalPlayers);
+  });
+
+  socket.on('round_results', (data) => {
+    clearTimer();
+    showResultsScreen(data);
+  });
+
+  socket.on('game_over', ({ leaderboard }) => {
+    showGameOver(leaderboard);
+  });
+}
+
+// ============================================================
+//  SCREEN MANAGEMENT
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+// ============================================================
+//  HOME TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-create').style.display = tab === 'create' ? '' : 'none';
+  document.getElementById('tab-join').style.display   = tab === 'join'   ? '' : 'none';
+}
+
+// Adjust demand labels based on distribution
+document.getElementById('distribution').addEventListener('change', function() {
+  const dist = this.value;
+  const stdInput    = document.getElementById('p-std');
+  const stdPlaceholder = document.getElementById('p-std-placeholder');
+  const minLabel    = document.getElementById('demand-label-min');
+  const maxLabel    = document.getElementById('demand-label-max');
+  const fieldMin    = document.getElementById('field-min');
+
+  if (dist === 'normal') {
+    minLabel.textContent = 'Mean';
+    maxLabel.textContent = 'Mean (also max)';
+    stdInput.style.display = '';
+    stdPlaceholder.style.display = 'none';
+    fieldMin.style.display = 'none';
+  } else if (dist === 'random') {
+    minLabel.textContent = 'Mean Demand';
+    maxLabel.textContent = 'Mean Demand';
+    stdInput.style.display = 'none';
+    stdPlaceholder.style.display = '';
+    fieldMin.style.display = 'none';
+  } else {
+    minLabel.textContent = 'Demand Min';
+    maxLabel.textContent = 'Demand Max';
+    stdInput.style.display = 'none';
+    stdPlaceholder.style.display = '';
+    fieldMin.style.display = '';
+  }
+});
+
+// ============================================================
+//  CREATE / JOIN
+// ============================================================
+function createRoom() {
+  initSocket();
+  const playerName = document.getElementById('create-name').value.trim();
+  if (!playerName) { toast('Enter your name', true); return; }
+
+  const dist = document.getElementById('distribution').value;
+  socket.emit('create_room', {
+    playerName,
+    maxRounds:    parseInt(document.getElementById('rounds').value) || 5,
+    distribution: dist,
+    params: {
+      price:           parseFloat(document.getElementById('p-price').value) || 10,
+      cost:            parseFloat(document.getElementById('p-cost').value)  || 4,
+      opportunityCost: parseFloat(document.getElementById('p-opp').value)   || 2,
+      demandMin:       parseFloat(document.getElementById('p-min').value)   || 20,
+      demandMax:       parseFloat(document.getElementById('p-max').value)   || 80,
+      demandStd:       parseFloat(document.getElementById('p-std').value)   || 15,
+    },
+  });
+}
+
+function joinRoom() {
+  initSocket();
+  const playerName = document.getElementById('join-name').value.trim();
+  const roomCode   = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!playerName) { toast('Enter your name', true); return; }
+  if (roomCode.length < 4) { toast('Enter a valid room code', true); return; }
+  socket.emit('join_room', { playerName, roomCode });
+}
+
+// ============================================================
+//  LOBBY
+// ============================================================
+function showLobby(roomSummary) {
+  document.getElementById('lobby-code').textContent = roomSummary.code;
+  updateLobbyPlayers(roomSummary.players);
+  document.getElementById('host-controls').style.display = state.isHost ? '' : 'none';
+  document.getElementById('guest-waiting').style.display = state.isHost ? 'none' : '';
+  showScreen('lobby');
+  log(`Joined room ${roomSummary.code}`);
+}
+
+function updateLobbyPlayers(players) {
+  const list = document.getElementById('lobby-players');
+  list.innerHTML = '';
+  document.getElementById('player-count').textContent = players.length;
+  players.forEach(p => {
+    const isMe   = p.id === state.myId;
+    const isHost = /* we track via socket */ false;
+    const div = document.createElement('div');
+    div.className = 'player-item' + (isMe ? ' host-player' : '');
+    div.innerHTML = `
+      <div class="player-dot ${p.connected ? '' : 'offline'}"></div>
+      <span>${escHtml(p.name)}${isMe ? ' <span style="color:var(--accent);font-size:.7rem">(you)</span>' : ''}</span>
+      ${p.ordered ? '<span class="player-badge">✓ ORDERED</span>' : ''}
+    `;
+    list.appendChild(div);
+  });
+}
+
+function startGame() {
+  socket.emit('start_game', { roomCode: state.roomCode });
+}
+
+// ============================================================
+//  ORDERING SCREEN
+// ============================================================
+function showOrderingScreen(data) {
+  // Reset order UI
+  document.getElementById('order-input-area').style.display   = '';
+  document.getElementById('order-submitted-msg').style.display = 'none';
+  document.getElementById('qty-input').value = Math.round(
+    (data.params.demandMin + data.params.demandMax) / 2
+  ) || 50;
+
+  // HUD
+  document.getElementById('hud-round').textContent  = `${data.round}/${state.maxRounds}`;
+  document.getElementById('hud-profit').textContent = fmt(state.myProfit);
+  document.getElementById('hud-price').textContent  = `$${data.params.price}`;
+  document.getElementById('hud-cost').textContent   = `$${data.params.cost}`;
+
+  // Params panel
+  const pg = document.getElementById('params-display');
+  pg.innerHTML = `
+    <div class="param-item"><div class="p-label">Opp. Cost</div><div class="p-val">$${data.params.opportunityCost}</div></div>
+    <div class="param-item"><div class="p-label">Demand Type</div><div class="p-val" style="text-transform:capitalize">${data.distribution || '—'}</div></div>
+    <div class="param-item"><div class="p-label">Demand Range</div><div class="p-val">${data.params.demandMin}–${data.params.demandMax}</div></div>
+  `;
+
+  updateOrderCount(0, 0);
+  startTimer(data.duration / 1000);
+  showScreen('ordering');
+}
+
+function adjustQty(delta) {
+  const inp = document.getElementById('qty-input');
+  inp.value = Math.max(0, Math.min(9999, (parseInt(inp.value) || 0) + delta));
+}
+
+function submitOrder() {
+  const qty = parseInt(document.getElementById('qty-input').value);
+  if (isNaN(qty) || qty < 0) { toast('Enter a valid quantity', true); return; }
+  socket.emit('submit_order', { roomCode: state.roomCode, quantity: qty });
+}
+
+function showOrderSubmitted(quantity) {
+  document.getElementById('order-input-area').style.display    = 'none';
+  document.getElementById('order-submitted-msg').style.display = 'flex';
+  document.getElementById('order-submitted-msg').style.display = 'block';
+  document.getElementById('submitted-qty-val').textContent = quantity + ' units';
+}
+
+function updateOrderCount(count, total) {
+  const pct = total > 0 ? (count / total) * 100 : 0;
+  document.getElementById('order-status-text').textContent = `${count} / ${total} submitted`;
+  document.getElementById('order-fill').style.width = pct + '%';
+}
+
+// ============================================================
+//  TIMER
+// ============================================================
+function startTimer(seconds) {
+  clearTimer();
+  const CIRCUMFERENCE = 2 * Math.PI * 65; // r=65
+  const ring  = document.getElementById('timer-ring');
+  const count = document.getElementById('timer-count');
+  ring.style.strokeDasharray  = CIRCUMFERENCE;
+  ring.style.strokeDashoffset = 0;
+
+  let remaining = seconds;
+  const tick = () => {
+    remaining = Math.max(0, remaining - 1);
+    count.textContent = remaining;
+    const offset = CIRCUMFERENCE * (1 - remaining / seconds);
+    ring.style.strokeDashoffset = offset;
+    if (remaining <= 10) {
+      ring.classList.add('urgent');
+      count.style.color = 'var(--red)';
+    }
+  };
+  tick();
+  state.timerInterval = setInterval(tick, 1000);
+}
+
+function clearTimer() {
+  if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; }
+}
+
+// ============================================================
+//  RESULTS SCREEN
+// ============================================================
+function showResultsScreen(data) {
+  document.getElementById('game-over-banner').style.display = 'none';
+  document.getElementById('result-demand').textContent = data.demand;
+  document.getElementById('result-dist').textContent   = `Distribution: ${data.distribution}`;
+
+  // Update my running profit
+  const me = data.results.find(r => r.playerId === state.myId);
+  if (me) state.myProfit += me.profit;
+
+  // Build results table
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = '';
+  data.results.forEach(r => {
+    const isMe = r.playerId === state.myId;
+    const tr = document.createElement('tr');
+    if (isMe) tr.classList.add('highlight');
+    const profitClass = r.profit >= 0 ? 'profit-pos' : 'profit-neg';
+    tr.innerHTML = `
+      <td>${escHtml(r.playerName)}${isMe ? ' <span style="color:var(--accent);font-size:.7rem">●</span>' : ''}</td>
+      <td>${r.ordered}</td>
+      <td>${r.qtySold}</td>
+      <td>${r.unmetDemand}</td>
+      <td>$${r.revenue.toFixed(0)}</td>
+      <td>$${r.totalCost.toFixed(0)}</td>
+      <td class="${profitClass}">${r.profit >= 0 ? '+' : ''}$${r.profit.toFixed(0)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Leaderboard
+  renderLeaderboard(data.leaderboard);
+
+  // Controls
+  const isLast = data.isGameOver;
+  document.getElementById('next-round-controls').style.display = (!isLast && state.isHost) ? '' : 'none';
+  document.getElementById('waiting-next').style.display = (!isLast && !state.isHost) ? '' : 'none';
+
+  showScreen('results');
+}
+
+function renderLeaderboard(leaderboard) {
+  const lb = document.getElementById('leaderboard');
+  lb.innerHTML = '';
+  leaderboard.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'lb-row' + (i === 0 ? ' lb-first' : '');
+    const isMe = p.id === state.myId;
+    div.innerHTML = `
+      <div class="lb-rank">${['🥇','🥈','🥉'][i] || (i+1)}</div>
+      <div class="lb-name">${escHtml(p.name)}${isMe ? ' <span style="color:var(--accent);font-size:.75rem">(you)</span>' : ''}</div>
+      <div class="lb-profit ${p.totalProfit >= 0 ? 'pos' : 'neg'}">${p.totalProfit >= 0 ? '+' : ''}$${p.totalProfit.toFixed(0)}</div>
+    `;
+    lb.appendChild(div);
+  });
+}
+
+function showGameOver(leaderboard) {
+  document.getElementById('game-over-banner').style.display = '';
+  document.getElementById('next-round-controls').style.display = 'none';
+  document.getElementById('waiting-next').style.display = 'none';
+  renderLeaderboard(leaderboard);
+}
+
+function requestNextRound() {
+  socket.emit('next_round', { roomCode: state.roomCode });
+}
+
+// ============================================================
+//  UTILS
+// ============================================================
+function log(msg) {
+  const el = document.getElementById('lobby-log');
+  if (!el) return;
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const now = new Date();
+  const ts  = now.toTimeString().slice(0,8);
+  line.innerHTML = `<span>${ts}</span>${escHtml(msg)}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function toast(msg, isErr = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'show' + (isErr ? ' toast-err' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+function fmt(n) {
+  return (n >= 0 ? '+' : '') + '$' + Math.round(n).toLocaleString();
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
