@@ -920,9 +920,9 @@ let state = {
 // ============================================================
 function initSocket() {
   if (socket) return;
-  // Automatically connects to whatever server served this page.
-  // If running locally, change to: io('http://localhost:3000')
-  socket = io();
+  // Connects back to the server that served this page.
+  // Works on localhost, Render, Glitch, and Railway without changes.
+  socket = io(window.location.origin, { transports: ["websocket", "polling"] });
 
   socket.on('connect', () => {
     state.myId = socket.id;
