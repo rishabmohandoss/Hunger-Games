@@ -13,7 +13,19 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+// Serve static files from /public
+const PUBLIC_DIR = path.join(__dirname, "public");
+app.use(express.static(PUBLIC_DIR));
+
+// Explicit root route — ensures Render/Glitch always find index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
+
+// Catch-all fallback for any other GET (SPA safety net)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
 
 // ── PORT ────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
