@@ -643,6 +643,90 @@ header {
   .field-row { grid-template-columns: 1fr; }
   .room-code-display .code { font-size: 2.2rem; letter-spacing: 8px; }
 }
+
+/* ── PARAM EDITOR ─────────────────────────────── */
+.param-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.param-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg3);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s, background .15s;
+}
+.param-editor-header:hover { background: rgba(30,45,61,.9); }
+.param-editor-header.open { border-bottom-color: var(--border); }
+.param-editor-title {
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.param-editor-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+.param-editor-chevron {
+  font-size: .75rem;
+  color: var(--muted);
+  transition: transform .25s;
+}
+.param-editor-chevron.open { transform: rotate(180deg); }
+.param-editor-body {
+  display: none;
+  padding: 20px 16px 16px;
+  background: var(--bg2);
+  animation: fadeIn .2s ease;
+}
+.param-editor-body.open { display: block; }
+.param-editor .field { margin-bottom: 12px; }
+.param-editor .field:last-child { margin-bottom: 0; }
+.param-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.param-editor-actions .btn { margin-top: 0; }
+.save-flash {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--green);
+  opacity: 0;
+  transition: opacity .3s;
+  white-space: nowrap;
+}
+.save-flash.show { opacity: 1; }
+.param-change-notice {
+  background: rgba(0,229,255,.06);
+  border: 1px solid rgba(0,229,255,.2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--accent);
+  margin-bottom: 16px;
+  display: none;
+}
+.param-change-notice.show { display: block; animation: fadeIn .3s ease; }
 </style>
 </head>
 <body>
@@ -770,6 +854,62 @@ header {
     </div>
 
     <div id="host-controls" style="display:none">
+
+      <!-- ── PARAM EDITOR (lobby) ── -->
+      <div class="param-editor" id="lobby-param-editor">
+        <div class="param-editor-header" onclick="toggleParamEditor('lobby')">
+          <div class="param-editor-title">Edit Market Parameters</div>
+          <div class="param-editor-chevron" id="lobby-chevron">▼</div>
+        </div>
+        <div class="param-editor-body" id="lobby-editor-body">
+          <div class="field-row">
+            <div class="field">
+              <label>Distribution</label>
+              <select id="edit-dist-lobby" onchange="onDistChange('lobby')">
+                <option value="uniform">Uniform</option>
+                <option value="normal">Normal</option>
+                <option value="random">Random (Wild)</option>
+              </select>
+            </div>
+            <div class="field" id="edit-field-min-lobby">
+              <label id="edit-min-label-lobby">Demand Min</label>
+              <input id="edit-min-lobby" type="number" min="0" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label id="edit-max-label-lobby">Demand Max</label>
+              <input id="edit-max-lobby" type="number" min="1" />
+            </div>
+            <div class="field" id="edit-field-std-lobby">
+              <label>Std Dev</label>
+              <input id="edit-std-lobby" type="number" min="1" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Selling Price / unit</label>
+              <input id="edit-price-lobby" type="number" min="1" />
+            </div>
+            <div class="field">
+              <label>Purchase Cost / unit</label>
+              <input id="edit-cost-lobby" type="number" min="0" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Opportunity Cost / unit</label>
+              <input id="edit-opp-lobby" type="number" min="0" />
+            </div>
+            <div class="field"></div>
+          </div>
+          <div class="param-editor-actions">
+            <button class="btn btn-primary" style="flex:1" onclick="saveParams('lobby')">✓ Save Changes</button>
+            <span class="save-flash" id="save-flash-lobby">✓ Saved!</span>
+          </div>
+        </div>
+      </div>
+
       <button class="btn btn-primary" id="start-btn" onclick="startGame()">▶ Start Game</button>
       <p class="text-muted text-center mt8">You are the host. Start when ready.</p>
     </div>
@@ -886,9 +1026,73 @@ header {
     </div>
 
     <div id="next-round-controls" style="display:none">
-      <button class="btn btn-primary" id="next-round-btn" onclick="requestNextRound()">→ Next Round</button>
+
+      <!-- param change notice for non-host players -->
+      <div class="param-change-notice" id="param-change-notice">
+        ⚡ Host updated market parameters for the next round
+      </div>
+
+      <!-- ── PARAM EDITOR (between rounds) ── -->
+      <div class="param-editor" id="results-param-editor">
+        <div class="param-editor-header" onclick="toggleParamEditor('results')">
+          <div class="param-editor-title">Adjust Next Round Parameters</div>
+          <div class="param-editor-chevron" id="results-chevron">▼</div>
+        </div>
+        <div class="param-editor-body" id="results-editor-body">
+          <div class="field-row">
+            <div class="field">
+              <label>Distribution</label>
+              <select id="edit-dist-results" onchange="onDistChange('results')">
+                <option value="uniform">Uniform</option>
+                <option value="normal">Normal</option>
+                <option value="random">Random (Wild)</option>
+              </select>
+            </div>
+            <div class="field" id="edit-field-min-results">
+              <label id="edit-min-label-results">Demand Min</label>
+              <input id="edit-min-results" type="number" min="0" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label id="edit-max-label-results">Demand Max</label>
+              <input id="edit-max-results" type="number" min="1" />
+            </div>
+            <div class="field" id="edit-field-std-results">
+              <label>Std Dev</label>
+              <input id="edit-std-results" type="number" min="1" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Selling Price / unit</label>
+              <input id="edit-price-results" type="number" min="1" />
+            </div>
+            <div class="field">
+              <label>Purchase Cost / unit</label>
+              <input id="edit-cost-results" type="number" min="0" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Opportunity Cost / unit</label>
+              <input id="edit-opp-results" type="number" min="0" />
+            </div>
+            <div class="field"></div>
+          </div>
+          <div class="param-editor-actions">
+            <button class="btn btn-primary" style="flex:1" onclick="saveParams('results')">✓ Save Changes</button>
+            <span class="save-flash" id="save-flash-results">✓ Saved!</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="next-round-btn" onclick="requestNextRound()">→ Start Next Round</button>
     </div>
     <div id="waiting-next" class="text-center text-muted mt16" style="display:none">
+      <div class="param-change-notice" id="param-change-notice-guest">
+        ⚡ Host updated market parameters for the next round
+      </div>
       Waiting for host to start next round…
     </div>
   </div>
@@ -956,13 +1160,15 @@ function initSocket() {
   });
 
   socket.on('game_starting', ({ roomSummary }) => {
-    state.maxRounds = roomSummary.maxRounds;
-    state.params    = roomSummary.params;
+    state.maxRounds    = roomSummary.maxRounds;
+    state.params       = roomSummary.params;
+    state.distribution = roomSummary.distribution;
   });
 
   socket.on('round_start', (data) => {
-    state.round  = data.round;
-    state.params = data.params;
+    state.round        = data.round;
+    state.params       = data.params;
+    state.distribution = data.distribution;
     showOrderingScreen(data);
   });
 
@@ -973,6 +1179,8 @@ function initSocket() {
   socket.on('order_update', ({ orderedCount, totalPlayers }) => {
     updateOrderCount(orderedCount, totalPlayers);
   });
+
+  wireParamEvents();
 
   socket.on('round_results', (data) => {
     clearTimer();
@@ -1073,6 +1281,9 @@ function showLobby(roomSummary) {
   updateLobbyPlayers(roomSummary.players);
   document.getElementById('host-controls').style.display = state.isHost ? '' : 'none';
   document.getElementById('guest-waiting').style.display = state.isHost ? 'none' : '';
+  // Store params so editor can populate on open
+  state.params       = roomSummary.params;
+  state.distribution = roomSummary.distribution;
   showScreen('lobby');
   log(`Joined room ${roomSummary.code}`);
 }
@@ -1218,6 +1429,20 @@ function showResultsScreen(data) {
   // Leaderboard
   renderLeaderboard(data.leaderboard);
 
+  // Reset param editor — close it and hide notices
+  ['lobby', 'results'].forEach(ctx => {
+    const body    = document.getElementById(`${ctx}-editor-body`);
+    const chevron = document.getElementById(`${ctx}-chevron`);
+    if (body) {
+      const header = body.previousElementSibling;
+      body.classList.remove('open');
+      if (header) header.classList.remove('open');
+      if (chevron) chevron.classList.remove('open');
+    }
+  });
+  document.getElementById('param-change-notice')?.classList.remove('show');
+  document.getElementById('param-change-notice-guest')?.classList.remove('show');
+
   // Controls
   const isLast = data.isGameOver;
   document.getElementById('next-round-controls').style.display = (!isLast && state.isHost) ? '' : 'none';
@@ -1284,6 +1509,129 @@ function escHtml(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ============================================================
+//  PARAM EDITOR
+// ============================================================
+
+/**
+ * Populate the editor inputs from the current state.params
+ * context = 'lobby' | 'results'
+ */
+function populateEditor(context) {
+  const p = state.params;
+  const d = state.distribution || 'uniform';
+  document.getElementById(`edit-dist-${context}`).value  = d;
+  document.getElementById(`edit-price-${context}`).value = p.price           ?? 10;
+  document.getElementById(`edit-cost-${context}`).value  = p.cost            ?? 4;
+  document.getElementById(`edit-opp-${context}`).value   = p.opportunityCost ?? 2;
+  document.getElementById(`edit-min-${context}`).value   = p.demandMin       ?? 20;
+  document.getElementById(`edit-max-${context}`).value   = p.demandMax       ?? 80;
+  document.getElementById(`edit-std-${context}`).value   = p.demandStd       ?? 15;
+  syncDistLabels(context, d);
+}
+
+function toggleParamEditor(context) {
+  const body    = document.getElementById(`${context}-editor-body`);
+  const header  = body.previousElementSibling;
+  const chevron = document.getElementById(`${context}-chevron`);
+  const isOpen  = body.classList.contains('open');
+
+  if (!isOpen) {
+    populateEditor(context);
+    body.classList.add('open');
+    header.classList.add('open');
+    chevron.classList.add('open');
+  } else {
+    body.classList.remove('open');
+    header.classList.remove('open');
+    chevron.classList.remove('open');
+  }
+}
+
+function onDistChange(context) {
+  const dist = document.getElementById(`edit-dist-${context}`).value;
+  syncDistLabels(context, dist);
+}
+
+function syncDistLabels(context, dist) {
+  const minField = document.getElementById(`edit-field-min-${context}`);
+  const stdField = document.getElementById(`edit-field-std-${context}`);
+  const minLabel = document.getElementById(`edit-min-label-${context}`);
+  const maxLabel = document.getElementById(`edit-max-label-${context}`);
+
+  if (dist === 'normal') {
+    minLabel.textContent = 'Mean';
+    maxLabel.textContent = 'Mean (also used as max)';
+    minField.style.display = 'none';
+    stdField.style.opacity = '1';
+    stdField.querySelector('input').disabled = false;
+  } else if (dist === 'random') {
+    minLabel.textContent = 'Mean Demand';
+    maxLabel.textContent = 'Mean Demand';
+    minField.style.display = 'none';
+    stdField.style.opacity = '.3';
+    stdField.querySelector('input').disabled = true;
+  } else {
+    minLabel.textContent = 'Demand Min';
+    maxLabel.textContent = 'Demand Max';
+    minField.style.display = '';
+    stdField.style.opacity = '.3';
+    stdField.querySelector('input').disabled = true;
+  }
+}
+
+function saveParams(context) {
+  const dist = document.getElementById(`edit-dist-${context}`).value;
+  const params = {
+    price:           parseFloat(document.getElementById(`edit-price-${context}`).value),
+    cost:            parseFloat(document.getElementById(`edit-cost-${context}`).value),
+    opportunityCost: parseFloat(document.getElementById(`edit-opp-${context}`).value),
+    demandMin:       parseFloat(document.getElementById(`edit-min-${context}`).value),
+    demandMax:       parseFloat(document.getElementById(`edit-max-${context}`).value),
+    demandStd:       parseFloat(document.getElementById(`edit-std-${context}`).value),
+  };
+
+  if (params.cost >= params.price) {
+    toast('Cost must be less than price', true); return;
+  }
+  if (params.demandMin >= params.demandMax && dist === 'uniform') {
+    toast('Demand Min must be less than Max', true); return;
+  }
+
+  socket.emit('update_params', { roomCode: state.roomCode, distribution: dist, params });
+}
+
+// Wire up socket events for param updates
+function wireParamEvents() {
+  socket.on('params_saved', ({ distribution, params }) => {
+    state.params       = params;
+    state.distribution = distribution;
+    // Flash save confirmation
+    ['lobby', 'results'].forEach(ctx => {
+      const flash = document.getElementById(`save-flash-${ctx}`);
+      if (flash) {
+        flash.classList.add('show');
+        setTimeout(() => flash.classList.remove('show'), 2000);
+      }
+    });
+  });
+
+  socket.on('params_updated', ({ distribution, params }) => {
+    // Non-host players: show notice
+    state.params       = params;
+    state.distribution = distribution;
+    if (!state.isHost) {
+      ['param-change-notice', 'param-change-notice-guest'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.add('show');
+          setTimeout(() => el.classList.remove('show'), 4000);
+        }
+      });
+    }
+  });
 }
 </script>
 </body>
