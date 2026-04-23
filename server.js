@@ -463,6 +463,21 @@ io.on("connection", (socket) => {
     console.log(`[Room ${roomCode}] Game reset by host`);
   });
 
+  // ── KICK PLAYER (host only) ──────────────────────────────
+  socket.on("kick_player", ({ roomCode, targetId }) => {
+    const room = rooms[roomCode];
+    if (!room) return socket.emit("error", { message: "Room not found." });
+    if (room.hostId !== socket.id) return socket.emit("error", { message: "Only the host can kick players." });
+
+    const target = room.players[targetId];
+    if (!target) return socket.emit("error", { message: "Player not found." });
+
+    delete room.players[targetId];
+    io.to(targetId).emit("kicked", { message: "You were removed by the host." });
+    io.to(roomCode).emit("player_kicked", { roomSummary: getRoomSummary(room) });
+    console.log(`[Room ${roomCode}] ${target.name} kicked by host`);
+  });
+
   // ── DISCONNECT ───────────────────────────────────────────
   socket.on("disconnect", () => {
     console.log(`[-] Socket disconnected: ${socket.id}`);

@@ -1481,6 +1481,17 @@ function initSocket() {
     toast('Game reset! Ready for another round?');
   });
 
+  socket.on('kicked', ({ message }) => {
+    toast(message, true);
+    sessionStorage.removeItem('roomCode');
+    sessionStorage.removeItem('playerName');
+    setTimeout(() => showScreen('home'), 1500);
+  });
+
+  socket.on('player_kicked', ({ roomSummary }) => {
+    updateLobbyPlayers(roomSummary.players);
+  });
+
   wireParamEvents();
 }
 
@@ -1615,6 +1626,7 @@ function updateLobbyPlayers(players) {
   document.getElementById('player-count').textContent = players.length;
   players.forEach((p, i) => {
     const isMe = p.id === state.myId;
+    const isHost = state.isHost && !isMe;
     const div  = document.createElement('div');
     div.className = 'player-item' + (isMe ? ' host-player' : '');
     div.style.animationDelay = (i * 0.06) + 's';
@@ -1622,9 +1634,14 @@ function updateLobbyPlayers(players) {
       <div class="player-dot ${p.connected ? '' : 'offline'}"></div>
       <span>${escHtml(p.name)}${isMe ? ' <span style="color:var(--muted);font-size:.72rem;margin-left:6px">(you)</span>' : ''}</span>
       ${p.ordered ? '<span class="player-badge">Ordered</span>' : ''}
+      ${isHost ? `<button class="btn btn-ghost" style="margin-left:auto; padding:4px 8px; font-size:.85rem" onclick="kickPlayer('${p.id}')">✕</button>` : ''}
     `;
     list.appendChild(div);
   });
+}
+
+function kickPlayer(targetId) {
+  socket.emit('kick_player', { roomCode: state.roomCode, targetId });
 }
 
 function startGame() {
