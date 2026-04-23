@@ -1708,6 +1708,13 @@ function startTimer(seconds) {
       ring.classList.add('urgent');
       count.classList.add('urgent');
     }
+    if (remaining === 0) {
+      document.getElementById('qty-input').disabled = true;
+      document.querySelectorAll('.qty-btn').forEach(btn => btn.disabled = true);
+      document.querySelector('.btn-green').disabled = true;
+      count.textContent = "Time's up";
+      count.classList.add('urgent');
+    }
   };
   tick();
   state.timerInterval = setInterval(tick, 1000);
