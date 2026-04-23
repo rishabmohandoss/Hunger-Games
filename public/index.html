@@ -1073,7 +1073,10 @@ header {
       <div class="card-title">Room Code</div>
       <div class="room-code-display">
         <div class="label">Share with players</div>
-        <div class="code" id="lobby-code">-----</div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px;">
+          <div class="code" id="lobby-code">-----</div>
+          <button class="btn btn-ghost" id="copy-code-btn" onclick="copyRoomCode()" title="Copy room code">📋</button>
+        </div>
       </div>
     </div>
 
@@ -1600,6 +1603,17 @@ function updateLobbyPlayers(players) {
 function startGame() {
   const roundDuration = parseInt(document.getElementById('round-duration').value) || 30;
   socket.emit('start_game', { roomCode: state.roomCode, roundDuration });
+}
+
+function copyRoomCode() {
+  if (state.roomCode) {
+    navigator.clipboard.writeText(state.roomCode).then(() => {
+      const btn = document.getElementById('copy-code-btn');
+      const originalText = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = originalText; }, 2000);
+    });
+  }
 }
 
 // ============================================================
