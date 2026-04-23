@@ -1269,6 +1269,11 @@ header {
       <div class="leaderboard" id="leaderboard"></div>
     </div>
 
+    <div id="game-over-controls" style="display:none">
+      <button class="btn btn-primary" onclick="playAgain()">Play Again</button>
+      <p class="text-muted text-center mt8">Start a new game with the same players</p>
+    </div>
+
     <div id="next-round-controls" style="display:none">
       <div class="param-change-notice" id="param-change-notice">
         ⚡ Host updated market parameters for the next round
@@ -1466,6 +1471,14 @@ function initSocket() {
 
   socket.on('game_over', ({ leaderboard }) => {
     showGameOver(leaderboard);
+  });
+
+  socket.on('game_reset', ({ roomSummary }) => {
+    state.myProfit = 0;
+    state.round = 0;
+    updateLobbyPlayers(roomSummary.players);
+    showLobby(roomSummary);
+    toast('Game reset! Ready for another round?');
   });
 
   wireParamEvents();
@@ -1800,9 +1813,12 @@ function showGameOver(leaderboard) {
   document.getElementById('game-over-banner').style.display = '';
   document.getElementById('next-round-controls').style.display = 'none';
   document.getElementById('waiting-next').style.display = 'none';
+  document.getElementById('game-over-controls').style.display = state.isHost ? '' : 'none';
   renderLeaderboard(leaderboard);
-  sessionStorage.removeItem('roomCode');
-  sessionStorage.removeItem('playerName');
+}
+
+function playAgain() {
+  socket.emit('play_again', { roomCode: state.roomCode });
 }
 
 function requestNextRound() {

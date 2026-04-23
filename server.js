@@ -445,6 +445,24 @@ io.on("connection", (socket) => {
     startRound(room);
   });
 
+  // ── PLAY AGAIN (host only) ───────────────────────────────
+  socket.on("play_again", ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return socket.emit("error", { message: "Room not found." });
+    if (room.hostId !== socket.id) return socket.emit("error", { message: "Only the host can reset the game." });
+
+    for (const player of Object.values(room.players)) {
+      player.totalProfit = 0;
+      player.history = [];
+      player.orderThisRound = null;
+    }
+    room.round = 0;
+    room.status = "lobby";
+
+    io.to(roomCode).emit("game_reset", { roomSummary: getRoomSummary(room) });
+    console.log(`[Room ${roomCode}] Game reset by host`);
+  });
+
   // ── DISCONNECT ───────────────────────────────────────────
   socket.on("disconnect", () => {
     console.log(`[-] Socket disconnected: ${socket.id}`);
