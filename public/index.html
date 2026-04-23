@@ -1252,6 +1252,7 @@ header {
             <tr>
               <th>Player</th>
               <th>Ordered</th>
+              <th>Q*</th>
               <th>Sold</th>
               <th>Unmet</th>
               <th>Revenue</th>
@@ -1779,6 +1780,7 @@ function showResultsScreen(data) {
     tr.innerHTML = `
       <td>${escHtml(r.playerName)}${isMe ? ' <span style="color:var(--muted);font-size:.7rem"> ●</span>' : ''}</td>
       <td>${r.ordered}</td>
+      <td>${data.optimalQ}</td>
       <td>${r.qtySold}</td>
       <td>${r.unmetDemand}</td>
       <td>$${r.revenue.toFixed(0)}</td>

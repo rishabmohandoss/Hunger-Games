@@ -177,6 +177,40 @@ function calculateProfit(ordered, demand, { price, cost, opportunityCost }) {
   };
 }
 
+/**
+ * Inverse Normal CDF approximation (Wichura's algorithm)
+ */
+function invNormalCDF(p) {
+  if (p < 0.5) return -invNormalCDF(1 - p);
+  const t = Math.sqrt(-2 * Math.log(1 - p));
+  const c = [2.515517, 0.802853, 0.010328];
+  const d = [1.432788, 0.189269, 0.001308];
+  const num = c[0] + c[1] * t + c[2] * t * t;
+  const den = 1 + d[0] * t + d[1] * t * t + d[2] * t * t * t;
+  return t - num / den;
+}
+
+/**
+ * Calculate optimal order quantity Q* using newsvendor formula
+ */
+function calculateOptimalQ(distribution, params, { price, cost, opportunityCost }) {
+  const criticalRatio = (price - cost) / (price - cost + opportunityCost);
+  let optimalQ = 0;
+
+  if (distribution === 'uniform') {
+    const { demandMin, demandMax } = params;
+    optimalQ = Math.round(demandMin + (demandMax - demandMin) * criticalRatio);
+  } else if (distribution === 'normal') {
+    const { demandMax: mean, demandStd: std } = params;
+    optimalQ = Math.round(mean + std * invNormalCDF(criticalRatio));
+  } else if (distribution === 'random') {
+    const { demandMax: mean } = params;
+    optimalQ = Math.round(mean + (mean * 0.6) * (criticalRatio * 2 - 1));
+  }
+
+  return Math.max(0, optimalQ);
+}
+
 // ============================================================
 //  ROUND RESOLUTION
 // ============================================================
@@ -186,6 +220,7 @@ function resolveRound(room) {
 
   room.status = "results";
   const demand = generateDemand(room.distribution, room.params);
+  const optimalQ = calculateOptimalQ(room.distribution, room.params, room.params);
   const roundResults = [];
 
   for (const player of Object.values(room.players)) {
@@ -208,6 +243,7 @@ function resolveRound(room) {
   const payload = {
     round: room.round,
     demand,
+    optimalQ,
     distribution: room.distribution,
     results: roundResults,
     leaderboard,
