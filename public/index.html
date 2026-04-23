@@ -1088,6 +1088,14 @@ header {
 
     <div id="host-controls" style="display:none">
 
+      <div class="card">
+        <div class="card-title">Game Settings</div>
+        <div class="field">
+          <label>Round Timer (seconds)</label>
+          <input id="round-duration" type="number" value="30" min="5" max="300" />
+        </div>
+      </div>
+
       <div class="param-editor" id="lobby-param-editor">
         <div class="param-editor-header" onclick="toggleParamEditor('lobby')">
           <div class="param-editor-title">Edit Market Parameters</div>
@@ -1579,7 +1587,8 @@ function updateLobbyPlayers(players) {
 }
 
 function startGame() {
-  socket.emit('start_game', { roomCode: state.roomCode });
+  const roundDuration = parseInt(document.getElementById('round-duration').value) || 30;
+  socket.emit('start_game', { roomCode: state.roomCode, roundDuration });
 }
 
 // ============================================================

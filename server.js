@@ -226,7 +226,7 @@ function resolveRound(room) {
 //  ROUND START
 // ============================================================
 
-const ROUND_DURATION_MS = 30_000;
+const DEFAULT_ROUND_DURATION_MS = 30_000;
 
 function startRound(room) {
   room.round++;
@@ -235,16 +235,17 @@ function startRound(room) {
   // Reset orders
   for (const p of Object.values(room.players)) p.orderThisRound = null;
 
+  const duration = room.roundDuration || DEFAULT_ROUND_DURATION_MS;
   io.to(room.code).emit("round_start", {
     round:        room.round,
     maxRounds:    room.maxRounds,
-    duration:     ROUND_DURATION_MS,
+    duration:     duration,
     distribution: room.distribution,
     params:       room.params,
   });
 
   // Server-side timer
-  room.timer = setTimeout(() => resolveRound(room), ROUND_DURATION_MS);
+  room.timer = setTimeout(() => resolveRound(room), duration);
 }
 
 // ============================================================
@@ -349,12 +350,16 @@ io.on("connection", (socket) => {
   });
 
   // ── START GAME (host only) ───────────────────────────────
-  socket.on("start_game", ({ roomCode }) => {
+  socket.on("start_game", ({ roomCode, roundDuration }) => {
     const room = rooms[roomCode];
     if (!room) return socket.emit("error", { message: "Room not found." });
     if (room.hostId !== socket.id) return socket.emit("error", { message: "Only the host can start the game." });
     if (room.status !== "lobby") return socket.emit("error", { message: "Game already started." });
     if (Object.keys(room.players).length < 1) return socket.emit("error", { message: "Need at least 1 player." });
+
+    if (roundDuration && !isNaN(roundDuration) && roundDuration > 0) {
+      room.roundDuration = roundDuration * 1000;
+    }
 
     io.to(roomCode).emit("game_starting", { roomSummary: getRoomSummary(room) });
     startRound(room);
