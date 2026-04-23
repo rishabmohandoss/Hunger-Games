@@ -153,15 +153,16 @@ function generateDemand(distribution, params) {
 // ============================================================
 
 /**
- * Profit = (Qty Sold × Price) − (Qty Ordered × Cost) − (Unmet Demand × OpportunityCost)
+ * Profit = (Qty Sold × Price) − (Qty Sold × Cost) − (Unmet Demand × OpportunityCost)
  * Qty Sold     = min(Ordered, Demand)
  * Unmet Demand = max(0, Demand − Ordered)
+ * Note: Cost is charged only for units actually sold, not ordered
  */
 function calculateProfit(ordered, demand, { price, cost, opportunityCost }) {
   const qtySold      = Math.min(ordered, demand);
   const unmetDemand  = Math.max(0, demand - ordered);
   const revenue      = qtySold * price;
-  const totalCost    = ordered * cost;
+  const totalCost    = qtySold * cost;
   const lostProfit   = unmetDemand * opportunityCost;
   const profit       = revenue - totalCost - lostProfit;
 
