@@ -357,6 +357,13 @@ io.on("connection", (socket) => {
     if (room.status !== "lobby") return socket.emit("error", { message: "Game already started." });
     if (Object.keys(room.players).length < 1) return socket.emit("error", { message: "Need at least 1 player." });
 
+    // Validate params
+    const p = room.params;
+    if (isNaN(p.price) || p.price <= 0) return socket.emit("error", { message: "Invalid price" });
+    if (isNaN(p.cost) || p.cost < 0) return socket.emit("error", { message: "Invalid cost" });
+    if (p.cost >= p.price) return socket.emit("error", { message: "Cost must be less than price" });
+    if (isNaN(p.opportunityCost) || p.opportunityCost < 0) return socket.emit("error", { message: "Invalid opportunity cost" });
+
     if (roundDuration && !isNaN(roundDuration) && roundDuration > 0) {
       room.roundDuration = roundDuration * 1000;
     }
@@ -401,7 +408,7 @@ io.on("connection", (socket) => {
       room.distribution = distribution;
     }
     if (params) {
-      room.params = {
+      const newParams = {
         price:           Number(params.price)           || room.params.price,
         cost:            Number(params.cost)            || room.params.cost,
         opportunityCost: Number(params.opportunityCost) >= 0 ? Number(params.opportunityCost) : room.params.opportunityCost,
@@ -409,6 +416,14 @@ io.on("connection", (socket) => {
         demandMax:       Number(params.demandMax)       || room.params.demandMax,
         demandStd:       Number(params.demandStd)       || room.params.demandStd,
       };
+
+      // Validate
+      if (isNaN(newParams.price) || newParams.price <= 0) return socket.emit("error", { message: "Invalid price" });
+      if (isNaN(newParams.cost) || newParams.cost < 0) return socket.emit("error", { message: "Invalid cost" });
+      if (newParams.cost >= newParams.price) return socket.emit("error", { message: "Cost must be less than price" });
+      if (isNaN(newParams.opportunityCost) || newParams.opportunityCost < 0) return socket.emit("error", { message: "Invalid opportunity cost" });
+
+      room.params = newParams;
     }
 
     io.to(roomCode).emit("params_updated", {
