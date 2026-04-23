@@ -313,25 +313,39 @@ io.on("connection", (socket) => {
     const room = rooms[code];
 
     if (!room) return socket.emit("error", { message: "Room not found." });
-    if (room.status !== "lobby") return socket.emit("error", { message: "Game already in progress." });
     if (!playerName || typeof playerName !== "string" || playerName.trim().length === 0)
       return socket.emit("error", { message: "Invalid player name." });
-    if (Object.keys(room.players).length >= 8)
-      return socket.emit("error", { message: "Room is full (max 8 players)." });
 
-    room.players[socket.id] = {
-      id:             socket.id,
-      name:           playerName.trim().slice(0, 24),
-      totalProfit:    0,
-      history:        [],
-      orderThisRound: null,
-      connected:      true,
-    };
+    const trimmedName = playerName.trim().slice(0, 24);
+    const existingPlayer = Object.values(room.players).find(p => p.name === trimmedName);
 
-    socket.join(code);
-    socket.emit("room_joined", { code, roomSummary: getRoomSummary(room) });
-    io.to(code).emit("player_joined", { roomSummary: getRoomSummary(room) });
-    console.log(`[Room ${code}] ${playerName} joined`);
+    if (existingPlayer) {
+      existingPlayer.id = socket.id;
+      existingPlayer.connected = true;
+      socket.join(code);
+      socket.emit("room_joined", { code, roomSummary: getRoomSummary(room), reconnected: true });
+      io.to(code).emit("player_joined", { roomSummary: getRoomSummary(room) });
+      console.log(`[Room ${code}] ${trimmedName} reconnected`);
+    } else {
+      if (room.status !== "lobby") return socket.emit("error", { message: "Game already in progress." });
+      const connectedCount = Object.values(room.players).filter(p => p.connected).length;
+      if (connectedCount >= 8)
+        return socket.emit("error", { message: "Room is full (max 8 players)." });
+
+      room.players[socket.id] = {
+        id:             socket.id,
+        name:           trimmedName,
+        totalProfit:    0,
+        history:        [],
+        orderThisRound: null,
+        connected:      true,
+      };
+
+      socket.join(code);
+      socket.emit("room_joined", { code, roomSummary: getRoomSummary(room) });
+      io.to(code).emit("player_joined", { roomSummary: getRoomSummary(room) });
+      console.log(`[Room ${code}] ${trimmedName} joined`);
+    }
   });
 
   // ── START GAME (host only) ───────────────────────────────

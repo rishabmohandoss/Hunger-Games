@@ -1382,6 +1382,7 @@ function initSocket() {
   socket.on('connect', () => {
     state.myId = socket.id;
     log(`Connected — ${socket.id.slice(0,8)}…`);
+    attemptAutoRejoin();
   });
 
   socket.on('disconnect', () => toast('Disconnected from server.', true));
@@ -1390,12 +1391,17 @@ function initSocket() {
   socket.on('room_created', ({ code, roomSummary }) => {
     state.roomCode = code;
     state.isHost   = true;
+    sessionStorage.setItem('roomCode', code);
+    sessionStorage.setItem('playerName', roomSummary.players[0]?.name || '');
     showLobby(roomSummary);
   });
 
-  socket.on('room_joined', ({ code, roomSummary }) => {
+  socket.on('room_joined', ({ code, roomSummary, reconnected }) => {
     state.roomCode = code;
     state.isHost   = false;
+    sessionStorage.setItem('roomCode', code);
+    sessionStorage.setItem('playerName', roomSummary.players.find(p => p.id === state.myId)?.name || '');
+    if (reconnected) toast(`Welcome back! You've been restored to the game.`);
     showLobby(roomSummary);
   });
 
@@ -1530,6 +1536,14 @@ function joinRoom() {
   if (!playerName) { toast('Enter your name', true); return; }
   if (roomCode.length < 4) { toast('Enter a valid room code', true); return; }
   socket.emit('join_room', { playerName, roomCode });
+}
+
+function attemptAutoRejoin() {
+  const roomCode = sessionStorage.getItem('roomCode');
+  const playerName = sessionStorage.getItem('playerName');
+  if (roomCode && playerName) {
+    socket.emit('join_room', { playerName, roomCode });
+  }
 }
 
 // ============================================================
@@ -1725,6 +1739,8 @@ function showGameOver(leaderboard) {
   document.getElementById('next-round-controls').style.display = 'none';
   document.getElementById('waiting-next').style.display = 'none';
   renderLeaderboard(leaderboard);
+  sessionStorage.removeItem('roomCode');
+  sessionStorage.removeItem('playerName');
 }
 
 function requestNextRound() {
