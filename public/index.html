@@ -1532,10 +1532,17 @@ function onDistChange(context) {
 //  CREATE / JOIN
 // ============================================================
 function createRoom() {
+  const btn = event.target;
+  btn.disabled = true;
+
   initSocket();
   const playerName = document.getElementById('create-name').value.trim();
-  if (!playerName) { toast('Enter your name', true); return; }
+  if (!playerName) { toast('Enter your name', true); btn.disabled = false; return; }
   const dist = document.getElementById('distribution').value;
+
+  const errorHandler = () => { btn.disabled = false; socket.off('error', errorHandler); };
+  socket.once('error', errorHandler);
+
   socket.emit('create_room', {
     playerName,
     maxRounds:    parseInt(document.getElementById('rounds').value) || 5,
@@ -1552,11 +1559,18 @@ function createRoom() {
 }
 
 function joinRoom() {
+  const btn = event.target;
+  btn.disabled = true;
+
   initSocket();
   const playerName = document.getElementById('join-name').value.trim();
   const roomCode   = document.getElementById('join-code').value.trim().toUpperCase();
-  if (!playerName) { toast('Enter your name', true); return; }
-  if (roomCode.length < 4) { toast('Enter a valid room code', true); return; }
+  if (!playerName) { toast('Enter your name', true); btn.disabled = false; return; }
+  if (roomCode.length < 4) { toast('Enter a valid room code', true); btn.disabled = false; return; }
+
+  const errorHandler = () => { btn.disabled = false; socket.off('error', errorHandler); };
+  socket.once('error', errorHandler);
+
   socket.emit('join_room', { playerName, roomCode });
 }
 
