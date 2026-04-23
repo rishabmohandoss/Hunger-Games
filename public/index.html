@@ -14,21 +14,21 @@
 
 :root {
   /* B&W palette */
-  --bg:          #1c2a3e;
-  --surface:     #1e2e42;
+  --bg:          #151f2e;
+  --surface:     #192233;
   --ink:         #ffffff;
-  --ink2:        #e8e8e8;
-  --ink3:        #b0b0b0;
-  --muted:       #909090;
-  --border:      rgba(255,255,255,0.10);
-  --border-mid:  rgba(255,255,255,0.18);
-  --border-hi:   rgba(255,255,255,0.30);
+  --ink2:        #f0f0f0;
+  --ink3:        var(--muted);
+  --muted:       #c8c8c8;
+  --border:      rgba(255,255,255,0.15);
+  --border-mid:  rgba(255,255,255,0.25);
+  --border-hi:   rgba(255,255,255,0.40);
 
-  /* Glass layers */
-  --glass-1:     rgba(255,255,255,0.06);
-  --glass-2:     rgba(255,255,255,0.10);
-  --glass-3:     rgba(255,255,255,0.15);
-  --glass-top:   rgba(255,255,255,0.25);
+  /* Glass layers - darker and more opaque */
+  --glass-1:     rgba(255,255,255,0.12);
+  --glass-2:     rgba(255,255,255,0.18);
+  --glass-3:     rgba(255,255,255,0.24);
+  --glass-top:   rgba(255,255,255,0.35);
 
   /* Shadows */
   --shadow-sm:   0 1px 3px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3);
@@ -228,7 +228,7 @@ header {
   font-weight: 600;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: #b8b8b8;
+  color: var(--muted);
   margin-bottom: 22px;
 }
 
@@ -239,7 +239,7 @@ header {
   font-family: var(--sans);
   font-size: .7rem;
   font-weight: 500;
-  color: #c0c0c0;
+  color: #e5e5e5;
   margin-bottom: 7px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -386,7 +386,7 @@ header {
   font-size: .65rem;
   font-weight: 600;
   letter-spacing: 3px;
-  color: #b8b8b8;
+  color: var(--muted);
   text-transform: uppercase;
   margin-bottom: 16px;
 }
@@ -471,7 +471,7 @@ header {
   font-size: .6rem;
   font-weight: 600;
   letter-spacing: 2px;
-  color: #b8b8b8;
+  color: var(--muted);
   text-transform: uppercase;
   margin-bottom: 7px;
 }
@@ -535,7 +535,7 @@ header {
   font-size: .58rem;
   font-weight: 600;
   letter-spacing: 2.5px;
-  color: #b8b8b8;
+  color: var(--muted);
   text-transform: uppercase;
   margin-top: 4px;
 }
@@ -545,7 +545,7 @@ header {
 .order-area .instruction {
   font-family: var(--sans);
   font-size: .82rem;
-  color: #b0b0b0;
+  color: var(--ink3);
   margin-bottom: 24px;
   letter-spacing: 0.3px;
 }
@@ -633,7 +633,7 @@ header {
   font-size: .58rem;
   font-weight: 600;
   letter-spacing: 2px;
-  color: #b8b8b8;
+  color: var(--muted);
   text-transform: uppercase;
   margin-bottom: 5px;
 }
@@ -680,7 +680,7 @@ header {
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #b8b8b8;
+  color: var(--muted);
   text-align: right;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-mid);
@@ -747,7 +747,7 @@ header {
   font-size: .65rem;
   font-weight: 600;
   letter-spacing: 3px;
-  color: #b8b8b8;
+  color: var(--muted);
   text-transform: uppercase;
   margin-bottom: 12px;
 }
@@ -883,7 +883,7 @@ header {
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #d0d0d0;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1362,13 +1362,13 @@ window.addEventListener('load', function() {
       gyroControls: false,
       minHeight: 200.00,
       minWidth: 200.00,
-      skyColor: 0x283954,
-      cloudColor: 0x9a9a9a,
-      cloudShadowColor: 0x546572,
-      sunColor: 0xac5917,
-      sunGlareColor: 0xed6f00,
-      sunlightColor: 0x905327,
-      speed: 0.50
+      skyColor: 0x0d1620,
+      cloudColor: 0xcccccc,
+      cloudShadowColor: 0x2a3a4a,
+      sunColor: 0xffa500,
+      sunGlareColor: 0xffaa00,
+      sunlightColor: 0xaa8844,
+      speed: 0.40
     });
   }
 });
