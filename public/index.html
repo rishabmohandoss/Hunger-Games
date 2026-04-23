@@ -1608,9 +1608,16 @@ function startGame() {
 function showOrderingScreen(data) {
   document.getElementById('order-input-area').style.display    = '';
   document.getElementById('order-submitted-msg').style.display = 'none';
-  document.getElementById('qty-input').value = Math.round(
-    ((data.params.demandMin || 0) + (data.params.demandMax || 100)) / 2
-  ) || 50;
+
+  let defaultQty = 50;
+  if (data.distribution === 'uniform') {
+    defaultQty = Math.round((data.params.demandMin + data.params.demandMax) / 2);
+  } else if (data.distribution === 'normal') {
+    defaultQty = Math.round(data.params.demandMax);
+  } else if (data.distribution === 'random') {
+    defaultQty = Math.round(data.params.demandMax);
+  }
+  document.getElementById('qty-input').value = defaultQty;
 
   document.getElementById('hud-round').textContent  = `${data.round}/${state.maxRounds}`;
   document.getElementById('hud-profit').textContent = fmt(state.myProfit);
