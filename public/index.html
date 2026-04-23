@@ -1496,18 +1496,29 @@ function onDistChange(context) {
     const minLabel       = document.getElementById('demand-label-min');
     const maxLabel       = document.getElementById('demand-label-max');
     const fieldMin       = document.getElementById('field-min');
+    const fieldStd       = document.getElementById('field-std');
+
     if (dist === 'normal') {
-      minLabel.textContent = 'Mean'; maxLabel.textContent = 'Mean';
-      stdInput.style.display = ''; stdPlaceholder.style.display = 'none';
-      fieldMin.style.display = 'none';
-    } else if (dist === 'random') {
-      minLabel.textContent = 'Mean Demand'; maxLabel.textContent = 'Mean Demand';
-      stdInput.style.display = 'none'; stdPlaceholder.style.display = '';
-      fieldMin.style.display = 'none';
-    } else {
-      minLabel.textContent = 'Demand Min'; maxLabel.textContent = 'Demand Max';
-      stdInput.style.display = 'none'; stdPlaceholder.style.display = '';
+      minLabel.textContent = 'Mean (μ)';
+      maxLabel.textContent = 'Mean (μ)';
       fieldMin.style.display = '';
+      fieldStd.style.display = '';
+      stdInput.style.display = '';
+      stdPlaceholder.style.display = 'none';
+    } else if (dist === 'random') {
+      minLabel.textContent = 'Mean Demand';
+      maxLabel.textContent = 'Mean Demand';
+      fieldMin.style.display = 'none';
+      fieldStd.style.display = 'none';
+      stdInput.style.display = 'none';
+      stdPlaceholder.style.display = '';
+    } else {
+      minLabel.textContent = 'Demand Min';
+      maxLabel.textContent = 'Demand Max';
+      fieldMin.style.display = '';
+      fieldStd.style.display = 'none';
+      stdInput.style.display = 'none';
+      stdPlaceholder.style.display = '';
     }
   } else {
     syncDistLabels(context, dist);
@@ -1791,17 +1802,22 @@ function syncDistLabels(context, dist) {
   const minLabel = document.getElementById(`edit-min-label-${context}`);
   const maxLabel = document.getElementById(`edit-max-label-${context}`);
   if (dist === 'normal') {
-    minLabel.textContent = 'Mean'; maxLabel.textContent = 'Mean';
-    minField.style.display = 'none';
-    stdField.style.opacity = '1'; stdField.querySelector('input').disabled = false;
-  } else if (dist === 'random') {
-    minLabel.textContent = 'Mean Demand'; maxLabel.textContent = 'Mean Demand';
-    minField.style.display = 'none';
-    stdField.style.opacity = '.3'; stdField.querySelector('input').disabled = true;
-  } else {
-    minLabel.textContent = 'Demand Min'; maxLabel.textContent = 'Demand Max';
+    minLabel.textContent = 'Mean (μ)';
+    maxLabel.textContent = 'Mean (μ)';
     minField.style.display = '';
-    stdField.style.opacity = '.3'; stdField.querySelector('input').disabled = true;
+    stdField.style.display = '';
+    const stdInput = stdField.querySelector('input');
+    if (stdInput) { stdInput.disabled = false; stdInput.style.display = ''; }
+  } else if (dist === 'random') {
+    minLabel.textContent = 'Mean Demand';
+    maxLabel.textContent = 'Mean Demand';
+    minField.style.display = 'none';
+    stdField.style.display = 'none';
+  } else {
+    minLabel.textContent = 'Demand Min';
+    maxLabel.textContent = 'Demand Max';
+    minField.style.display = '';
+    stdField.style.display = 'none';
   }
 }
 
