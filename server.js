@@ -426,6 +426,16 @@ io.on("connection", (socket) => {
         roomSummary:  getRoomSummary(room),
       });
 
+      // Host migration on disconnect
+      if (room.hostId === socket.id) {
+        const nextHost = Object.values(room.players).find(p => p.connected && p.id !== socket.id);
+        if (nextHost) {
+          room.hostId = nextHost.id;
+          io.to(code).emit('host_transferred', { newHostId: nextHost.id, newHostName: nextHost.name });
+          console.log(`[Room ${code}] Host transferred to ${nextHost.name}`);
+        }
+      }
+
       // If all players disconnected, clean up after 2 minutes
       const anyConnected = Object.values(room.players).some((p) => p.connected);
       if (!anyConnected) {

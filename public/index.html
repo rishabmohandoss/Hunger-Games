@@ -1410,6 +1410,17 @@ function initSocket() {
     if (roomSummary) updateLobbyPlayers(roomSummary.players);
   });
 
+  socket.on('host_transferred', ({ newHostId, newHostName }) => {
+    state.isHost = (newHostId === state.myId);
+    const controls = document.getElementById('host-controls');
+    const guestWaiting = document.getElementById('guest-waiting');
+    if (controls && guestWaiting) {
+      controls.style.display = state.isHost ? '' : 'none';
+      guestWaiting.style.display = state.isHost ? 'none' : '';
+    }
+    toast(`${newHostName} is the new host`);
+  });
+
   socket.on('game_starting', ({ roomSummary }) => {
     state.maxRounds   = roomSummary.maxRounds;
     state.params      = roomSummary.params;
