@@ -1767,8 +1767,8 @@ function showResultsScreen(data) {
   document.getElementById('result-demand').textContent = data.demand;
   document.getElementById('result-dist').textContent   = data.distribution + ' distribution';
 
-  const me = data.results.find(r => r.playerId === state.myId);
-  if (me) state.myProfit += me.profit;
+  const meInLb = data.leaderboard.find(p => p.id === state.myId);
+  if (meInLb) state.myProfit = meInLb.totalProfit;
 
   const tbody = document.getElementById('results-tbody');
   tbody.innerHTML = '';

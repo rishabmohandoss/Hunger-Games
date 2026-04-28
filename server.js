@@ -205,8 +205,18 @@ function calculateOptimalQ(distribution, params, { price, cost, opportunityCost 
     const { demandMax: mean, demandStd: std } = params;
     optimalQ = Math.round(mean + std * invNormalCDF(criticalRatio));
   } else if (distribution === 'random') {
-    const { demandMax: mean } = params;
-    optimalQ = Math.round(mean + (mean * 0.6) * (criticalRatio * 2 - 1));
+    const trials = 500;
+    let bestQ = 0, bestExpected = -Infinity;
+    const maxQ = Math.round(params.demandMax * 2);
+    const step = Math.max(1, Math.round(params.demandMax / 50));
+    for (let q = 0; q <= maxQ; q += step) {
+      let total = 0;
+      for (let i = 0; i < trials; i++) {
+        total += calculateProfit(q, generateDemand('random', params), { price, cost, opportunityCost }).profit;
+      }
+      if (total > bestExpected) { bestExpected = total; bestQ = q; }
+    }
+    optimalQ = bestQ;
   }
 
   return Math.max(0, optimalQ);
