@@ -162,7 +162,7 @@ function calculateProfit(ordered, demand, { price, cost, opportunityCost }) {
   const qtySold      = Math.min(ordered, demand);
   const unmetDemand  = Math.max(0, demand - ordered);
   const revenue      = qtySold * price;
-  const totalCost    = qtySold * cost;
+  const totalCost    = ordered * cost;
   const lostProfit   = unmetDemand * opportunityCost;
   const profit       = revenue - totalCost - lostProfit;
 
